@@ -11,6 +11,8 @@ this tool to the public to use and extend.
 Installation
 ============
 
+Requires Python 2.6.x - 2.7.x
+
 phoneyPDF has a few dependencies: Google's V8 javascript engine, pyv8, and lxml. We'll go over how to install each of those
  - *V8*: Google's javascript interpreter
  - *pyv8*: python connector to v8 so you can execute javascript from within your Python scripts
@@ -37,7 +39,13 @@ TODO
 Tutorial
 ========
 
-TODO
+From within the phoneypdf directory, you can interpret/analyze a PDF file by providing its path:
+
+```bash
+python main.py ~/importantFile.pdf
+```
+
+And it will do its thing. More to come on what this actually does and how to interpret what it spits out...
 
 
 ## LICENSE
