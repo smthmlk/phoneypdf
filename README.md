@@ -1,4 +1,4 @@
-# phoneyPDF : A Virtual PDF Analysis Framework
+# phoneyPDF
 
 About
 =====
