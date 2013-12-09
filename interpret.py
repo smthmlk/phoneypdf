@@ -50,8 +50,6 @@ from utils import *
 import jsDOM
 from pyv8 import PyV8
 import logger
-
-# ML
 from features import *
 
 # Toggle the value of USE_PURE_JS to use one of :
@@ -60,7 +58,7 @@ from features import *
 
 USE_PURE_JS = True
 # Development Debugging mode
-DEBUG   =   False
+DEBUG = False
 # PATH_SCRIPTS is where the JavaScript files will we saved if DEBUG
 PATH_SCRIPTS    =   "scripts"
 
@@ -88,7 +86,7 @@ KEY_LENGTH      =   '/Length'
 KEY_TYPE        =   '/Type'
 KEY_S           =   '/S'
 KEY_ACROFORM    =   '/AcroForm'
-KEY_EMBEDDEDFILE    =   '/EmbeddedFile'
+KEY_EMBEDDEDFILE=   '/EmbeddedFile'
 KEY_XFA         =   '/XFA'
 KEY_CATALOG     =   '/Catalog'
 KEY_CONTENTS    =   '/Contents'
@@ -96,18 +94,18 @@ KEY_FILTER      =   '/Filter'
 KEY_KIDS        =   '/Kids'
 KEY_COUNT       =   '/Count'
 KEY_PARENT      =   '/Parent'
-KEY_LASTMODIFIED    =   '/LastModified'
-KEY_RESOURCES       =   '/Resources'
-KEY_MEDIABOX        =   '/MediaBox'
+KEY_LASTMODIFIED=   '/LastModified'
+KEY_RESOURCES   =   '/Resources'
+KEY_MEDIABOX    =   '/MediaBox'
 KEY_ANNOTS      =   '/Annots'
 KEY_ANNOT       =   '/Annot'
-KEY_EMBEDDEDFILE    =   '/EmbeddedFile'
-KEY_EF      =   '/EF'
+KEY_EMBEDDEDFILE=   '/EmbeddedFile'
+KEY_EF          =   '/EF'
 KEY_FONT        =   '/Font'
 KEY_LAUNCH      =   '/Launch'
-KEY_WIN     =   '/Win'
-KEY_F       =   '/F'
-KEY_P       =   '/P'
+KEY_WIN         =   '/Win'
+KEY_F           =   '/F'
+KEY_P           =   '/P'
 KEY_SUBJ        =   '/Subj'
 
 
@@ -128,18 +126,18 @@ class InterpretPDF:
     __jsL = None
     '''All JavaScript text is appended to this list - in the order that its found'''
 
-    __pdfObjTypeD = {   1: "PDF_ELEMENT_COMMENT",
-                        2: "PDF_ELEMENT_INDIRECT_OBJECT",
-                        3: "PDF_ELEMENT_XREF",
-                        4: "PDF_ELEMENT_TRAILER",
-                        5: "PDF_ELEMENT_STARTXREF",
-                        6: "PDF_ELEMENT_MALFORMED",
-                        "PDF_ELEMENT_COMMENT": 1,
-                        "PDF_ELEMENT_INDIRECT_OBJECT": 2,
-                        "PDF_ELEMENT_XREF": 3,
-                        "PDF_ELEMENT_TRAILER": 4,
-                        "PDF_ELEMENT_STARTXREF": 5,
-                        "PDF_ELEMENT_MALFORMED": 6 }
+    __pdfObjTypeD = {1: "PDF_ELEMENT_COMMENT",
+                     2: "PDF_ELEMENT_INDIRECT_OBJECT",
+                     3: "PDF_ELEMENT_XREF",
+                     4: "PDF_ELEMENT_TRAILER",
+                     5: "PDF_ELEMENT_STARTXREF",
+                     6: "PDF_ELEMENT_MALFORMED",
+                     "PDF_ELEMENT_COMMENT": 1,
+                     "PDF_ELEMENT_INDIRECT_OBJECT": 2,
+                     "PDF_ELEMENT_XREF": 3,
+                     "PDF_ELEMENT_TRAILER": 4,
+                     "PDF_ELEMENT_STARTXREF": 5,
+                     "PDF_ELEMENT_MALFORMED": 6}
     '''For enumerations of PDFObject types for easier debugging'''
 
     def __init__(self, pdfTEXT, verbose=False):
@@ -153,7 +151,7 @@ class InterpretPDF:
         """
         self.logger = logger.buildLogger()
         self.verbose = verbose
-        if self.verbose == True:
+        if self.verbose is True:
             self.logger.setLevel(logging.DEBUG)
         else:
             self.logger.setLevel(logging.ERROR)
@@ -169,19 +167,18 @@ class InterpretPDF:
             f.close()
             self.logger.info("Wrote PDF string to %s" % debugPdfFilepath)
 
-
-        self.__pdfObjL = [] # a list of all pdf objects parsed
-        self.__pdfIndObjD = {} # quick access to indirect objects by their ID number ( int => pdf obj )
+        self.__pdfObjL = []  # a list of all pdf objects parsed
+        self.__pdfIndObjD = {}  # quick access to indirect objects by their ID number ( int => pdf obj )
         self.__jsS = set()
-        self.__jsL = [] # all js strings we find are stored here so we retain order
+        self.__jsL = []  # all js strings we find are stored here so we retain order
         self.__hookObjects = []
         self.__visitedIndirectObjects = set()
         self.__openActionScripts = []
         self.__streams = []
         self._readerPages = -1  # track the number of 'Page' objects we saw
         self.__scriptCount = 0  # used to count scripts. used when writing scripts to disk in DEBUG mode
-        self.__features = {}    # Feature extraction for doing ML
-        self.__stats = {}       # Various stats from PDF objects
+        self.__features = {}  # Feature extraction for doing ML
+        self.__stats = {}  # Various stats from PDF objects
 
         # misc temp objects
         self._handlerKey = None
@@ -210,19 +207,19 @@ class InterpretPDF:
         if not DEBUG:
             return
         for key, value in self.__stats.items():
-            print key,value
+            print key, value
 
-        for key,value in self.__features.items():
-            print key,value
+        for key, value in self.__features.items():
+            print key, value
 
     def _increment_stats(self, stat):
-        if self.__stats.has_key(stat):
+        if stat in self.__stats.has_key:
             self.__stats[stat] +=1
         else:
             self.__stats[stat] = 1
 
     def _increment_feature(self, feature, value=1):
-        if self.__features.has_key(feature):
+        if feature in self.__features:
             self.__features[feature] += value
         else:
             self.__features[feature] = value
@@ -230,21 +227,21 @@ class InterpretPDF:
     def __handleActions(self):
         for js in self.__openActionScripts:
             self._increment_feature(F_C_JS_SCRIPTS_FOUND)
-            self.__ExecuteJavaScript( js )
+            self.__executeJavaScript(js)
 
     def __checkJSChanges(self):
         for fieldName in self.__xfa__monitoredFieldNames:
-            self.__ExecuteJavaScript('if(%s.rawValue) { analyzeData(%s.rawValue) }'%(fieldName, fieldName), isDom=True)
+            self.__executeJavaScript('if(%s.rawValue) { analyzeData(%s.rawValue) }' % (fieldName, fieldName), isDom=True)
 
         # clobber all the features together
         self.__features.update(self.javascript_global.features)
-        if self.__features.has_key(F_L_JS_SCRIPTS_LENGTH_TOTAL):
-            self.__features[F_S_PERCENTAGE_SCRIPT] = ( float(self.__features[F_L_JS_SCRIPTS_LENGTH_TOTAL]) / float(self.__features[F_L_PDF_LENGTH])) * 100
+        if F_L_JS_SCRIPTS_LENGTH_TOTAL in self.__features.has_key:
+            self.__features[F_S_PERCENTAGE_SCRIPT] = (float(self.__features[F_L_JS_SCRIPTS_LENGTH_TOTAL]) / float(self.__features[F_L_PDF_LENGTH])) * 100
 
-        if self.__features.has_key(F_C_JS_UNESCAPE_CALLS):
-            if ( self.__features[F_C_JS_UNESCAPE_CALLS] > 1 ): # and ( self.__features[F_L_JS_UNESCAPE_LENGTH] > self.javascript_global.UNESCAPE_THRESHOLD ):
-                event = Events('Suspicious', [self.__features[F_C_JS_UNESCAPE_CALLS], self.__features[F_L_JS_UNESCAPE_LENGTH]] )
-                self.javascript_global.hookObjects.append( event)
+        if F_C_JS_UNESCAPE_CALLS in self.__features.has_key:
+            if (self.__features[F_C_JS_UNESCAPE_CALLS] > 1):  # and ( self.__features[F_L_JS_UNESCAPE_LENGTH] > self.javascript_global.UNESCAPE_THRESHOLD ):
+                event = Events('Suspicious', [self.__features[F_C_JS_UNESCAPE_CALLS], self.__features[F_L_JS_UNESCAPE_LENGTH]])
+                self.javascript_global.hookObjects.append(event)
 
     def get_features(self):
         return self.__features
@@ -268,7 +265,7 @@ class InterpretPDF:
             if not USE_PURE_JS:
                 self.logger.debug("[JavaScript] Using PyV8 Engine")
                 js_bootstrap = open('adobe_bootstrap.js').read()
-                ctx.eval( js_bootstrap )
+                ctx.eval(js_bootstrap)
             else:
                 self.logger.debug("[JavaScript] Using Pure JavaScript Engine")
 
@@ -282,14 +279,14 @@ class InterpretPDF:
 
                 try:
                     for js_file in files:
-                        self.logger.debug('[JavaScript] Loading %s......'%(adobeDir+js_file)),
-                        data = open(adobeDir+js_file).read()
+                        self.logger.debug('[JavaScript] Loading %s......' % (adobeDir + js_file))
+                        data = open(adobeDir + js_file).read()
                         ctx.eval(data)
-                except Exception,e:
-                    self.logger.exception('[%s] %s'%(js_file,e))
+                except Exception, e:
+                    self.logger.exception('[%s] %s' % (js_file, e))
                     exit(-1)
 
-    def __ExecuteJavaScript(self, script, saveScript=False, isDom=False):
+    def __executeJavaScript(self, script, saveScript=False, isDom=False):
         """
         Executes the requested Javascript snippet in the malicious context (ctx)
             *   saveScript  = Will save the script to scripts/. This is used during debugging
@@ -298,7 +295,7 @@ class InterpretPDF:
         # Write the script to scripts/MD5
         if type(script) not in types.StringTypes:
             self.logger.warn("passed a script whose types is %r" % script)
-            if isinstance( script, PDFIndObjRef ):
+            if isinstance(script, PDFIndObjRef):
                 script= self.__getIndirectObjectJavaScript(script)
                 self.logger.warn("successfully extracted JavaScript from indirect Object")
             else:
@@ -308,7 +305,7 @@ class InterpretPDF:
             if not isDom:
                 # writes executed scripts to PATH_SCRIPTS
                 md5_val = md5(script).hexdigest()
-                f = open('%s/%s_%s'%(PATH_SCRIPTS, self.__scriptCount, md5_val),'w')
+                f = open('%s/%s_%s' % (PATH_SCRIPTS, self.__scriptCount, md5_val), 'w')
                 f.write(script)
                 f.close()
 
@@ -321,15 +318,15 @@ class InterpretPDF:
 
             self.logger.debug("Executing %d bytes of Javscript: \033[33;3m%s\033[0m" % (len(script), shortenedScript))
 
-        with self.ctx :
+        with self.ctx:
             try:
                 if not isDom:
                     self._increment_feature(F_C_JS_SCRIPTS_EXECUTED)
                     self._increment_feature(F_L_JS_SCRIPTS_LENGTH_TOTAL, len(script))
-                self.ctx.eval( script )
-            except Exception,e:
+                self.ctx.eval(script)
+            except Exception, e:
                 self._increment_feature(F_C_JS_SCRIPTS_EXECUTION_FAILED)
-                self.logger.debug("\033[91m%s\033[0m"%(e))
+                self.logger.debug("\033[91m%s\033[0m" % e)
 
     def __JSDebug(self):
         """
@@ -344,11 +341,10 @@ class InterpretPDF:
                 if eval_string.lower() == 'quit':
                     goEval = False
                 else:
-                    with self.ctx :
-                        self.ctx.eval( "console.log(%s)"%(eval_string))
-                    #('console.log(%s)'%eval_string)
-            except Exception,e:
-                print e
+                    with self.ctx:
+                        self.ctx.eval("console.log(%s)" % eval_string)
+            except Exception, e:
+                self.logger.error("caught exception executing javascript repl shell: %s" % e)
 
     def __getPdfObjects(self, pdfTEXT):
         '''
@@ -364,7 +360,7 @@ class InterpretPDF:
         # Get a parser and begin extracting pdfObjs
         oPDFParser = cPDFParser(pdfSIO, False, None, self.logger)
         pdfObj = 1
-        while pdfObj != None:
+        while pdfObj is not None:
             pdfObj = oPDFParser.GetObject()
 
             if pdfObj is None:
@@ -386,9 +382,8 @@ class InterpretPDF:
                     self.logger.debug("Registering Indirect PDF Object: %d" % pdfObj.id)
                     self.__pdfIndObjD[pdfObj.id] = pdfObj
 
-            self.logger.debug("Added PDFObject %s" % self.__pdfObjTypeD[ pdfObj.type ])
-            self.__pdfObjL.append( pdfObj )
-
+            self.logger.debug("Added PDFObject %s" % self.__pdfObjTypeD[pdfObj.type])
+            self.__pdfObjL.append(pdfObj)
 
     def __bruteForceJS(self):
         '''
@@ -401,18 +396,18 @@ class InterpretPDF:
         self.logger.debug("\n[Brute-Force] Trying one last time to exec JS from all streams")
         # Now, lets iterate all the indirect objects, searching for JS
         for indObjID, indObj in self.__pdfIndObjD.items():
-            if indObj.dict.has_key(KEY_S) and ( indObj.dict[KEY_S] in [KEY_JAVASCRIPT,KEY_RENDITION]):
+            if KEY_S in indObj.dict and indObj.dict[KEY_S] in (KEY_JAVASCRIPT, KEY_RENDITION):
                 # We found a JS object!
-                self.__jsS.add( indObjID )
-            if indObj.dict.has_key(KEY_TYPE) and ( indObj.dict[KEY_TYPE] == KEY_ACTION ):
+                self.__jsS.add(indObjID)
+            if KEY_TYPE in indObj.dict and indObj.dict[KEY_TYPE] == KEY_ACTION:
                 # Action object. Lets see if this has JS
-                if indObj.dict.has_key(KEY_JS):
-                    self.__jsS.add( indObjID )
-            if indObj.dict.has_key(KEY_FILTER):
+                if KEY_JS in indObj.dict.has_key:
+                    self.__jsS.add(indObjID)
+            if KEY_FILTER in indObj.dict:
                 # All streams need investigation
-                self.logger.debug("[Brute-Force] Found a %s stream in object # %s"%(indObj.dict[KEY_FILTER], indObjID ))
+                self.logger.debug("[Brute-Force] Found a %s stream in object # %s" % (indObj.dict[KEY_FILTER], indObjID))
                 try:
-                    self.__ExecuteJavaScript( indObj.stream )
+                    self.__executeJavaScript(indObj.stream)
                     self.logger.debug("[Brute-Force] Successfully found a JavaScript stream")
                 except Exception:
                     # passing on exceptions... sigh
@@ -422,12 +417,12 @@ class InterpretPDF:
         """
         Given an indirect object, return the embedded JavaScript
         """
-        if isinstance( indirectObject, PDFIndObjRef ):
-            target_object = self.__pdfIndObjD[ indirectObject.objectID ]
-            if isinstance( target_object, PDFIndObjRef ):
-                return self.__getIndirectObjectJS( target_object )
-            elif isinstance( target_object, cPDFElementIndirectObject ):
-                if hasattr( target_object, 'stream'):
+        if isinstance(indirectObject, PDFIndObjRef):
+            target_object = self.__pdfIndObjD[indirectObject.objectID]
+            if isinstance(target_object, PDFIndObjRef):
+                return self.__getIndirectObjectJS(target_object)
+            elif isinstance(target_object, cPDFElementIndirectObject):
+                if hasattr(target_object, 'stream'):
                     return target_object.stream
         else:
             self.logger.debug("Need an indirect object.")
@@ -625,7 +620,7 @@ class InterpretPDF:
                 elif pdfElement.dict.has_key(KEY_JS) and isinstance( pdfElement.dict[KEY_JS], PDFIndObjRef):
                     js = self.__getIndirectObjectJavaScript( pdfElement.dict[KEY_JS])
                 if js:
-                    self.__ExecuteJavaScript ( js )
+                    self.__executeJavaScript ( js )
             elif hasattr(pdfElement, 'stream'):
                 self.logger.debug("[%s ID:%s ] Found a Stream! Length = %s"%(handlerKey, pdfElement.id, len(pdfElement.stream)))
                 return pdfElement.stream
@@ -635,8 +630,8 @@ class InterpretPDF:
             for key in ['/Subject', '/Author', '/Creator']:
                 if pdfElement.dict.has_key(key):
                     # Add this attribute(including lower-case )  to the event object in JS
-                    self.__ExecuteJavaScript( "event.target.%s = '%s';"%(key.strip('/'), pdfElement.dict[key]), isDom=False)
-                    self.__ExecuteJavaScript( "event.target.%s = '%s';"%(key.strip('/').lower(), pdfElement.dict[key]), isDom=False)
+                    self.__executeJavaScript( "event.target.%s = '%s';"%(key.strip('/'), pdfElement.dict[key]), isDom=False)
+                    self.__executeJavaScript( "event.target.%s = '%s';"%(key.strip('/').lower(), pdfElement.dict[key]), isDom=False)
 
             # As a last resort, lets run generic handlers on all objects herein
             for key in pdfElement.dict.keys():
@@ -670,7 +665,7 @@ class InterpretPDF:
                         self.logger.debug("[%s ID:%s] Executing Javascript" %(pdfElement.dict[KEY_TYPE], pdfElement.id) )
                         if js:
                             self._increment_feature(F_C_JS_SCRIPTS_FOUND)
-                            self.__ExecuteJavaScript( js )
+                            self.__executeJavaScript( js )
                     elif pdfElement.dict[KEY_S] == KEY_LAUNCH:
                         self.logger.debug("[%s ID:%s] Found a /Launch action type item "%(pdfElement.dict[KEY_TYPE], pdfElement.id))
                         if pdfElement.dict.has_key(KEY_WIN):
@@ -701,7 +696,7 @@ class InterpretPDF:
                 # Handle a /Page object
                 self.logger.debug("[%s ID:%s ] Found a new %s"%(KEY_PAGE, pdfElement.id, KEY_PAGE))
                 self._readerPages += 1
-                self.__ExecuteJavaScript( "Pages[%s] = {}; Pages[%s].annotations = new Array();"%(self._readerPages, self._readerPages) , saveScript=False, isDom=True )
+                self.__executeJavaScript( "Pages[%s] = {}; Pages[%s].annotations = new Array();"%(self._readerPages, self._readerPages) , saveScript=False, isDom=True )
                 for key in pdfElement.dict.keys():
                     # We are interested in /Contents, /Resources and other useful stuff
                     if key in [KEY_CONTENTS, KEY_RESOURCES, KEY_AA]:
@@ -719,7 +714,7 @@ class InterpretPDF:
                     value = self._handle_Generic( pdfElement.dict[key])
                     if key == KEY_SUBJ:
                         # add this annotation to the current page
-                        self.__ExecuteJavaScript("Pages[%s].annotations.push(new app.doc.Annotation('%s'));"%(self._readerPages,value), saveScript=False, isDom=True)
+                        self.__executeJavaScript("Pages[%s].annotations.push(new app.doc.Annotation('%s'));"%(self._readerPages,value), saveScript=False, isDom=True)
 
             elif pdfElement.dict[KEY_TYPE] == KEY_EMBEDDEDFILE:
                 #/EmbeddedFile - An Embedded File Stream Section 3.10.3
@@ -783,7 +778,7 @@ class InterpretPDF:
                             for _script in scriptL:
                                 # eval the script in the context
                                 self._increment_stats(F_C_JS_SCRIPTS_FOUND)
-                                self.__ExecuteJavaScript( _script )
+                                self.__executeJavaScript( _script )
 
                 for key in pdfElement.dict.keys():
                     self.logger.debug("[%s] Handling %s"%(KEY_CATALOG, key))
@@ -838,23 +833,23 @@ class InterpretPDF:
                 ancestors.append( ancestor.tag )
             ancestors.reverse()
             if ancestors:
-                self.__ExecuteJavaScript( "%s.%s = {}"%('.'.join(ancestors), element.tag) , isDom=is_dom)
+                self.__executeJavaScript( "%s.%s = {}"%('.'.join(ancestors), element.tag) , isDom=is_dom)
             else:
-                self.__ExecuteJavaScript( "%s%s = {}"%('.'.join(ancestors), element.tag) , isDom=is_dom)
+                self.__executeJavaScript( "%s%s = {}"%('.'.join(ancestors), element.tag) , isDom=is_dom)
             if element.text and element.text.strip():
                 if element.tag == 'script':
                     scriptL.append( element.text.strip())
-                    #self.__ExecuteJavaScript( "%s"%(element.text.strip()) )
+                    #self.__executeJavaScript( "%s"%(element.text.strip()) )
                 else:
-                    self.__ExecuteJavaScript( "%s.%s = \"%s\""%('.'.join(ancestors), element.tag,element.text.strip()) , isDom=is_dom)
-                    self.__ExecuteJavaScript("var %s = {}; %s.rawValue=\"%s\";"%(element.tag, element.tag, element.text.strip()) ,isDom=is_dom)
+                    self.__executeJavaScript( "%s.%s = \"%s\""%('.'.join(ancestors), element.tag,element.text.strip()) , isDom=is_dom)
+                    self.__executeJavaScript("var %s = {}; %s.rawValue=\"%s\";"%(element.tag, element.tag, element.text.strip()) ,isDom=is_dom)
 
             for key, value in element.items():
                 if key.lower() == 'name':
                     rawValue = ''
                     if element.text:
                         rawValue = element.text.strip()
-                    self.__ExecuteJavaScript("var %s = {}; %s.rawValue=\"%s\";"%(value, value, rawValue), isDom=is_dom)
+                    self.__executeJavaScript("var %s = {}; %s.rawValue=\"%s\";"%(value, value, rawValue), isDom=is_dom)
                     self.__xfa__monitoredFieldNames.add(value)
                 elif key.lower() == 'contenttype':
                     if value in ['image/tif','image/tiff']:
@@ -872,13 +867,13 @@ class InterpretPDF:
                     continue
                 jsDOM.removeNamespace(childElement,self.logger)
                 if ancestors:
-                    self.__ExecuteJavaScript( "%s.%s.%s = {};" % ('.'.join(ancestors), element.tag, childElement.tag), isDom=is_dom)
-                    self.__ExecuteJavaScript( "%s.%s[%d] = {};" % ('.'.join(ancestors), element.tag, index) , isDom=is_dom)
-                    self.__ExecuteJavaScript( "%s.%s[%d].%s = {};" % ('.'.join(ancestors), element.tag, index, childElement.tag) , isDom=is_dom)
+                    self.__executeJavaScript( "%s.%s.%s = {};" % ('.'.join(ancestors), element.tag, childElement.tag), isDom=is_dom)
+                    self.__executeJavaScript( "%s.%s[%d] = {};" % ('.'.join(ancestors), element.tag, index) , isDom=is_dom)
+                    self.__executeJavaScript( "%s.%s[%d].%s = {};" % ('.'.join(ancestors), element.tag, index, childElement.tag) , isDom=is_dom)
                 else:
-                    self.__ExecuteJavaScript( "%s%s.%s = {};" % ('.'.join(ancestors), element.tag, childElement.tag) , isDom=is_dom)
-                    self.__ExecuteJavaScript( "%s%s[%d] = {};" % ('.'.join(ancestors), element.tag, index) , isDom=is_dom)
-                    self.__ExecuteJavaScript( "%s%s[%d].%s = {};" % ('.'.join(ancestors), element.tag, index, childElement.tag) , isDom=is_dom)
+                    self.__executeJavaScript( "%s%s.%s = {};" % ('.'.join(ancestors), element.tag, childElement.tag) , isDom=is_dom)
+                    self.__executeJavaScript( "%s%s[%d] = {};" % ('.'.join(ancestors), element.tag, index) , isDom=is_dom)
+                    self.__executeJavaScript( "%s%s[%d].%s = {};" % ('.'.join(ancestors), element.tag, index, childElement.tag) , isDom=is_dom)
 
                 buildElements(childElement)
                 index += 1
@@ -1003,5 +998,3 @@ class InterpretPDF:
             self.logger.debug("%s    %s" % (spaces, repr(pO.stream[:256])))
 
         return xml
-
-
