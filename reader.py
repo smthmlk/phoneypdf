@@ -113,12 +113,12 @@ class Global(PyV8.JSClass):
             strings = tools.getStrings(decoded)
             if strings:
                 for _string in strings:
-                    if ('http' in _string.lower()) or ( 'A'*100 in _string) or ( '.dll' in _string.lower() ) or ( '.exe' in _string.lower()):
+                    if ('http' in _string.lower()) or ('A'*100 in _string) or ('.dll' in _string.lower()) or ('.exe' in _string.lower()):
                         # Most likely a malicious URL. Lets add to event.
                         name = 'Exploit'
                         args = ['2010-0188']
-                        event = Events( name , args)
-                        self.hookObjects.append( event)
+                        event = Events(name, args)
+                        self.hookObjects.append(event)
         except Exception,e:
             self.logger.debug("Could not base64-decode : %s"%(e))
 
@@ -157,13 +157,12 @@ class Global(PyV8.JSClass):
 
     def log_event(self, function_name, function_arguments ):
         args = []
+        print "function_arguments=%s" % type(function_arguments)
         for arg in function_arguments:
             args.append(arg)
         name = function_name
-        event = Events( name , args)
-        self.hookObjects.append( event)
-
-##################################################################
+        event = Events(name, args)
+        self.hookObjects.append(event)
 
 if __name__ == "__main__":
     """
