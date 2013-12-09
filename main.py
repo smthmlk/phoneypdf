@@ -10,7 +10,7 @@ import interpret
 # Parse options from command line
 usage = "usage: %prog [options]"
 parser = optparse.OptionParser(usage=usage)
-parser.add_option("-v","--verbose", dest="verbose", action="store_true", help="enable verbose mode", default=False, metavar="VERBOSE")
+parser.add_option("-v", "--verbose", dest="verbose", action="store_true", help="enable verbose mode", default=False, metavar="VERBOSE")
 options, args = parser.parse_args()
 
 # Begining to paddle in the water
@@ -38,11 +38,11 @@ try:
                     scanResultsL[event.name] += 1
                     msgL.append(' [%s]' % event.name)
                     print "event=%s" % repr(event)
-        except Exception,e:
+        except Exception, e:
             print "Caught unhandled exception: %s" % e
-            print '-'*60
+            print '-' * 60
             traceback.print_exc(file=sys.stdout)
-            print '-'*60
+            print '-' * 60
 
         if not fileCount % 10:
             msgL.append('\n[*] \033[91m %d files remaining.\033[0m' % fileCount)
@@ -54,10 +54,16 @@ except KeyboardInterrupt, e:
 #### Display Results
 print '\nResults:'
 print 'Files scanned : %d' % scannedFiles
-print 'Files detected: %d (%d%%)' % (filesWithDetections, (100.0 * filesWithDetections / scannedFiles))
+if scannedFiles == 0:
+    percentage = 0.0
+else:
+    100.0 * filesWithDetections / scannedFiles
+
+print 'Files detected: %d (%d%%)' % (filesWithDetections, percentage)
 
 if scanResultsL:
     print 'Detection breakdown:'
-    for key,value in scanResultsL.iteritems():
+    for key, value in scanResultsL.iteritems():
         print '\t%s - %d' % (key, value)
+
 print '\nDone'
