@@ -103,7 +103,7 @@ class Global(PyV8.JSClass):
         import base64
         try:
             decoded = base64.b64decode(jsValue)
-            self.logger.debug("\033[91m Successfully decoded a field's rawValue. %sbytes \033[0m"%(len(decoded)))
+            self.logger.debug("\033[91m Successfully decoded a field's rawValue. %sbytes \033[0m" % len(decoded))
             md5_value = md5(decoded).hexdigest()
             if self.DEBUG:
                 f = open('exploits/%s'%(md5_value), 'w')
@@ -114,13 +114,13 @@ class Global(PyV8.JSClass):
             if strings:
                 for _string in strings:
                     if ('http' in _string.lower()) or ('A'*100 in _string) or ('.dll' in _string.lower()) or ('.exe' in _string.lower()):
-                        # Most likely a malicious URL. Lets add to event.
+                        # Most likely a malicious URL. Add an event
                         name = 'Exploit'
-                        args = ['2010-0188']
+                        args = ['2010-0188'] # @kbandla: how do you know this is CVE-2010-0188? Just the long string A's?
                         event = Events(name, args)
                         self.hookObjects.append(event)
         except Exception,e:
-            self.logger.debug("Could not base64-decode : %s"%(e))
+            self.logger.debug("Could not base64-decode : %s" % e)
 
     def add_feature(self, feature, value):
         self.features[feature] = value

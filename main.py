@@ -37,7 +37,6 @@ try:
                 for event in p.getHookObjects():
                     scanResultsL[event.name] += 1
                     msgL.append(' [%s]' % event.name)
-                    print "event=%s" % repr(event)
         except Exception, e:
             print "Caught unhandled exception: %s" % e
             print '-' * 60
@@ -57,7 +56,7 @@ print 'Files scanned : %d' % scannedFiles
 if scannedFiles == 0:
     percentage = 0.0
 else:
-    100.0 * filesWithDetections / scannedFiles
+    percentage = 100.0 * filesWithDetections / scannedFiles
 
 print 'Files detected: %d (%d%%)' % (filesWithDetections, percentage)
 
