@@ -50,7 +50,7 @@ from utils import *
 import jsDOM
 from pyv8 import PyV8
 import logger
-from features import *
+import features
 
 # Toggle the value of USE_PURE_JS to use one of :
 #   * [False] PyV8-based Adobe DOM
@@ -140,6 +140,9 @@ class InterpretPDF:
                      "PDF_ELEMENT_MALFORMED": 6}
     '''For enumerations of PDFObject types for easier debugging'''
 
+    featureCollection = None
+    '''A features.FeatureCollection instance specific to this PDF being interpreted'''
+
     def __init__(self, pdfTEXT, verbose=False):
         """
         Arguments:
@@ -177,7 +180,8 @@ class InterpretPDF:
         self.__streams = []
         self._readerPages = -1  # track the number of 'Page' objects we saw
         self.__scriptCount = 0  # used to count scripts. used when writing scripts to disk in DEBUG mode
-        self.__features = {}  # Feature extraction for doing ML
+        self.featureCollection = features.FeatureCollection(self.logger)  # used to track features for a later ML phase
+        self.featureCollection.setFeatureValue('F_L_PDF_LENGTH', len(pdfTEXT))
         self.__stats = {}  # Various stats from PDF objects
 
         # misc temp objects
@@ -189,7 +193,6 @@ class InterpretPDF:
         self.catalogObj = None
 
         # parse pdf with pdf-parser; get list of PDFpdfObj's back and classifies them
-        self.__features[F_L_PDF_LENGTH] = len(pdfTEXT)
         self.__getPdfObjects(pdfTEXT)
 
         # JavaScript Context for this PDF
@@ -203,13 +206,10 @@ class InterpretPDF:
         self._print_stats()
 
     def _print_stats(self):
-        return
+        return  # ??
         if not DEBUG:
             return
         for key, value in self.__stats.items():
-            print key, value
-
-        for key, value in self.__features.items():
             print key, value
 
     def _increment_stats(self, stat):
@@ -218,33 +218,18 @@ class InterpretPDF:
         else:
             self.__stats[stat] = 1
 
-    def _increment_feature(self, feature, value=1):
-        if feature in self.__features:
-            self.__features[feature] += value
-        else:
-            self.__features[feature] = value
-
     def __handleActions(self):
         for js in self.__openActionScripts:
-            self._increment_feature(F_C_JS_SCRIPTS_FOUND)
+            self.featureCollection.incFeatureValue("F_C_JS_SCRIPTS_FOUND")
             self.__executeJavaScript(js)
 
     def __checkJSChanges(self):
         for fieldName in self.__xfa__monitoredFieldNames:
             self.__executeJavaScript('if(%s.rawValue) { analyzeData(%s.rawValue) }' % (fieldName, fieldName), isDom=True)
 
-        # clobber all the features together
-        self.__features.update(self.javascript_global.features)
-        if F_L_JS_SCRIPTS_LENGTH_TOTAL in self.__features:
-            self.__features[F_S_PERCENTAGE_SCRIPT] = (float(self.__features[F_L_JS_SCRIPTS_LENGTH_TOTAL]) / float(self.__features[F_L_PDF_LENGTH])) * 100
-
-        if F_C_JS_UNESCAPE_CALLS in self.__features:
-            if (self.__features[F_C_JS_UNESCAPE_CALLS] > 1):  # and ( self.__features[F_L_JS_UNESCAPE_LENGTH] > self.javascript_global.UNESCAPE_THRESHOLD ):
-                event = Events('Suspicious', [self.__features[F_C_JS_UNESCAPE_CALLS], self.__features[F_L_JS_UNESCAPE_LENGTH]])
-                self.javascript_global.hookObjects.append(event)
-
-    def get_features(self):
-        return self.__features
+        # Add collected features from Javascript land
+        for key, value in self.javascript_global.features.iteritems():
+            self.featureCollection.setFeatureValue(key, value)
 
     def getHookObjects(self):
         """
@@ -321,11 +306,11 @@ class InterpretPDF:
         with self.ctx:
             try:
                 if not isDom:
-                    self._increment_feature(F_C_JS_SCRIPTS_EXECUTED)
-                    self._increment_feature(F_L_JS_SCRIPTS_LENGTH_TOTAL, len(script))
+                    self.featureCollection.incFeatureValue("F_C_JS_SCRIPTS_EXECUTED")
+                    self.featureCollection.incFeatureValue("F_L_JS_SCRIPTS_LENGTH_TOTAL", len(script))
                 self.ctx.eval(script)
             except Exception, e:
-                self._increment_feature(F_C_JS_SCRIPTS_EXECUTION_FAILED)
+                self.featureCollection.incFeatureValue("F_C_JS_SCRIPTS_EXECUTION_FAILED")
                 self.logger.debug("\033[91m%s\033[0m" % e)
 
     def __JSDebug(self):
@@ -431,24 +416,23 @@ class InterpretPDF:
         '''
         Walks a given Indirect object till it finds JS, and adds the JS to __jsL
         '''
-        if jsObj.type == self.__pdfObjTypeD['PDF_ELEMENT_INDIRECT_OBJECT']:
-            # walk to the referenced indirect object
-            if jsObj.GetReferences():
-                for reference in jsObj.GetReferences():
-                    tmpObj = self.__pdfIndObjD[ int(reference[0]) ]
-                    self.__getIndirectObjectJS(tmpObj)
-            elif hasattr(jsObj,'dict'):
-                if jsObj.dict.get('/S',None) in ['/JavaScript','/Rendition']:
-                    if jsObj.dict.has_key('/JS'):
-                        self.__jsL.append( jsObj.dict['/JS'] )
-                elif jsObj.dict.has_key('/JS'):
-                    #tmpObjID = jsObj.dict['/JS'].objectID
-                    self.__getIndirectObjectJS(tmpObj)
-                elif hasattr(jsObj, 'stream'):
-                    self.__jsL.append( jsObj.stream )
-                else:
-                    return None
+        if jsObj.type != self.__pdfObjTypeD['PDF_ELEMENT_INDIRECT_OBJECT']:
+            return
 
+        # walk to the referenced indirect object
+        if jsObj.GetReferences():
+            for reference in jsObj.GetReferences():
+                tmpObj = self.__pdfIndObjD[int(reference[0])]
+                self.__getIndirectObjectJS(tmpObj)
+
+        elif hasattr(jsObj, 'dict'):
+            if jsObj.dict.get('/S', None) in ['/JavaScript', '/Rendition']:
+                if '/JS' in jsObj.dict:
+                    self.__jsL.append(jsObj.dict['/JS'])
+            elif '/JS' in jsObj.dict:
+                self.__getIndirectObjectJS(tmpObj)
+            elif hasattr(jsObj, 'stream'):
+                self.__jsL.append(jsObj.stream)
 
     def __isIndObjJS(self, objectID):
         '''
@@ -457,8 +441,8 @@ class InterpretPDF:
         Needs an ObjectID. NOT an object
         If yes, return the JS blob. Else, None
         '''
-        obj= self.__pdfIndObjD[ objectID ]
-        if obj.dict.has_key(KEY_S):
+        obj = self.__pdfIndObjD[objectID]
+        if KEY_S in obj.dict:
             if obj.dict[KEY_S] in [KEY_JAVASCRIPT, KEY_RENDITION]:
                 if obj.dict.has_key(KEY_JS):
                     if hasattr(obj.dict[KEY_JS], "objectID"):
@@ -664,7 +648,7 @@ class InterpretPDF:
                             #TODO: JS is served. Pick it up
                         self.logger.debug("[%s ID:%s] Executing Javascript" %(pdfElement.dict[KEY_TYPE], pdfElement.id) )
                         if js:
-                            self._increment_feature(F_C_JS_SCRIPTS_FOUND)
+                            self.featureCollection.incFeatureValue("F_C_JS_SCRIPTS_FOUND")
                             self.__executeJavaScript( js )
                     elif pdfElement.dict[KEY_S] == KEY_LAUNCH:
                         self.logger.debug("[%s ID:%s] Found a /Launch action type item "%(pdfElement.dict[KEY_TYPE], pdfElement.id))

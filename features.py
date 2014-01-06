@@ -10,6 +10,7 @@ Legend:
  C_ : Count
  L_ : Length / Size
 
+Trevor Tonn <smthmlk@gmail.com>
 Kiran Bandla <kbandla@intovoid.com>
 
 Copyright (c) 2013, VERISIGN, Inc
@@ -40,26 +41,135 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 '''
+import types
 
-# JavaScript related Features
-F_P_JS_SUSPICIOUS_HEAPSPRAY = "F_JS_SUSPICIOUS_HEAPSPRAY"
-F_P_JS_RAWVALUE = "F_JS_RAWVALUE"
+class NoSuchFeature(Exception):
+    pass
 
-# PDF related Features
-F_P_PDF_OPENACTION    =   "F_PDF_OPENACTION"
-F_P_PDF_RENDITION     =   "F_PDF_RENDITION"
-F_P_PDF_ = ""
-F_L_PDF_LENGTH      =   "F_L_PDF_LENGTH"
+def validateFeatureName(name):
+    if type(name) not in types.StringTypes:
+        raise Exception("Feature names must be strings; found %s instead" % type(name))
+    if name is "":
+        raise Exception("The empty string \"\" is not a valid feature name")
+    return name.upper()
 
-# Statistical Features
-F_C_JS_SCRIPTS_EXECUTION_FAILED =   "F_C_JS_SCRIPTS_EXECUTION_FAILED"
-F_C_JS_SCRIPTS_FOUND    =   "F_C_JS_SCRIPTS_FOUND"
-F_C_JS_SCRIPTS_EXECUTED =   "F_C_JS_SCRIPTS_EXECUTED"
-F_L_JS_SCRIPTS_LENGTH_TOTAL =   "F_L_JS_SCRIPTS_LENGTH_TOTAL"
+def featureSanity(func):
+    """
+    This decorator does a bunch of sanity checks on the feature, stuff that's done
+    in several methods and so is worth factoring out.
 
-F_S_PERCENTAGE_SCRIPT   =   "F_S_PERCENTAGE_SCRIPT"
+    Checks performed:
+        - is the feature name a string type?
+        - is it the empty string?
+        - does the feature exist? (it should)
+    """
+    def featureNameSanity(*args, **kwargs):
+        # Sanity check first
+        name = validateFeatureName(args[1])
 
-# JavaScript Execution Features
-F_C_JS_UNESCAPE_CALLS =   "c_unescape_calls"
-F_C_JS_UNESCAPE_LONG_PARAMS = "c_unescape_long_params"
-F_L_JS_UNESCAPE_LENGTH  =   "l_unescape_param"
+        # Replace with uppercase version
+        newArgsL = list(args)
+        newArgsL[1] = name
+        newArgsT = tuple(newArgsL)
+
+        # Feature exists?
+        if newArgsT[1] not in newArgsT[0].featuresD:
+            raise NoSuchFeature("no feature: %s" % repr(newArgsT))
+
+        return func(*newArgsT, **kwargs)
+
+    return featureNameSanity
+
+
+class FeatureCollection(object):
+    """
+    This class allows a simple, self-contained way of collecting various features during the parsing
+    and execution of a PDF file. It keeps its own state outside of the PDF Interpreter instance, has
+    its own methods for manipulating its internal data structures, and is supposed to work seamlessly
+    with the PdfFeatureAnalyzer framework.
+    """
+
+    def __init__(self, logger):
+        self.logger = logger
+
+        # this dict is where all our features are stored, along with their values
+        # the keys are the class variables defined above, while
+        self.featuresD = {}
+        self.registerCommonFeatures()
+
+    def registerFeature(self, featureName):
+        """
+        Registers a new feature. If a feature by this name already exists, this call returns
+        without modifying anything.
+
+        This method must be called to register any features you want to use/track during the
+        course of PDF execution or afterwards when analyzing the DOM, objects, etc.
+        """
+        featureName = validateFeatureName(featureName)
+        self.logger.info("feature: %s" % featureName)
+        if featureName in self.featuresD:
+            self.logger.warn("feature %s already exists; ignoring" % repr(featureName))
+            return
+
+        # we may have features with different types; may have to make this slightly more complex
+        # in that case
+        self.featuresD[featureName] = 0
+
+    def registerCommonFeatures(self):
+        """
+        This method registers features that we know we want to always collect.
+        """
+        # JavaScript related Features
+        for featureName in ("F_JS_SUSPICIOUS_HEAPSPRAY", "F_JS_RAWVALUE"):
+            self.registerFeature(featureName)
+
+        # PDF related Features
+        for featureName in ("F_PDF_OPENACTION", "F_PDF_RENDITION", "F_L_PDF_LENGTH"):
+            self.registerFeature(featureName)
+
+        # Statistical Features
+        for featureName in ("F_C_JS_SCRIPTS_EXECUTION_FAILED", "F_C_JS_SCRIPTS_FOUND", "F_C_JS_SCRIPTS_EXECUTED", "F_L_JS_SCRIPTS_LENGTH_TOTAL", "F_S_PERCENTAGE_SCRIPT"):
+            self.registerFeature(featureName)
+
+        # JavaScript Execution Features
+        for featureName in ("c_unescape_calls", "c_unescape_long_params", "l_unescape_param"):
+            self.registerFeature(featureName)
+
+    @featureSanity
+    def setFeatureValue(self, featureName, value):
+        featureName = featureName.upper()
+        if featureName not in self.featuresD:
+            raise NoSuchFeature("no such feature %s" % repr(featureName))
+        self.featuresD[featureName] = value
+
+    @featureSanity
+    def incFeatureValue(self, featureName, value=1):
+        """
+        For features which are numeric (int/floats) this method takes their existing value and
+        increments it by some amount (1 by default)
+        """
+        if type(self.featuresD[featureName]) not in (int, float):
+            raise Exception("Trying to increment value of a non-numeric feature (%s is %s)" % (featureName, type(self.featuresD[featureName])))
+        self.featuresD[featureName] += value
+
+    @featureSanity
+    def getFeatureValue(self, featureName):
+        if featureName not in self.featuresD:
+            raise NoSuchFeature("no such feature: %s" % repr(featureName))
+        return self.featuresD[featureName]
+
+
+if __name__ == "__main__":
+    import logging
+    import sys
+
+    logging.basicConfig(stream=sys.stdout, format="%(levelname)s %(funcName)s | %(message)s")
+    logger = logging.getLogger('FeatureCollection')
+    logger.setLevel(logging.DEBUG)
+
+    fc = FeatureCollection(logger)
+    fc.registerFeature("x")
+    fc.incFeatureValue('x')
+    fc.incFeatureValue('x', 10)
+    print fc.getFeatureValue('x')
+    fc.registerFeature(None)
