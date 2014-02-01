@@ -71,6 +71,11 @@ try:
                 for event in p.getHookObjects():
                     scanResultsL[event.name] += 1
                     msgL.append(' [%s]' % event.name)
+
+            # check out features
+            print "Features:"
+            for featureName, value in p.featureCollection.featuresD.iteritems():
+                print "  %s = %s" % (featureName, value)
         except Exception, e:
             print "Caught unhandled exception: %s" % e
             print '-' * 60

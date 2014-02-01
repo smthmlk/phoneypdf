@@ -257,7 +257,6 @@ class cPDFParser:
                 else:
                     self.logger.debug(" ..has no direct object")
 
-
                 # STREAM: try to parse a stream from the tokens; we'll go ahead and filter it now as well
                 stream = pO.Stream(filter=True)
                 if stream:
@@ -476,7 +475,7 @@ class cPDFElementIndirectObject(PDFElement):
         self.dict = None
         self.array = None
         self.logger = logger
-
+        self.filters = []
 
     def GetType(self):
         content = CopyWithoutWhiteSpace(self.content)
@@ -523,11 +522,9 @@ class cPDFElementIndirectObject(PDFElement):
         state = 'start'
         countDirectories = 0
         data = ''
-        filters = []
 
         for i in range(0, len(self.content)):
             if state == 'start':
-
                 if self.content[i][0] == CHAR_DELIMITER and self.content[i][1] == '<<':
                     countDirectories += 1
                 if self.content[i][0] == CHAR_DELIMITER and self.content[i][1] == '>>':
@@ -540,27 +537,31 @@ class cPDFElementIndirectObject(PDFElement):
 
             elif state == 'filter':
                 if self.content[i][0] == CHAR_DELIMITER and self.content[i][1][0] == '/':
-                    filters = [self.content[i][1]]
+                    self.filters = [self.content[i][1]]
                     state = 'search-stream'
                 elif self.content[i][0] == CHAR_DELIMITER and self.content[i][1] == '[':
                     state = 'filter-list'
+
             elif state == 'filter-list':
                 if self.content[i][0] == CHAR_DELIMITER and self.content[i][1][0] == '/':
-                    filters.append(self.content[i][1])
+                    self.filters.append(self.content[i][1])
                 elif self.content[i][0] == CHAR_DELIMITER and self.content[i][1] == ']':
                     state = 'search-stream'
+
             elif state == 'search-stream':
                 if self.content[i][0] == CHAR_REGULAR and self.content[i][1] == 'stream':
                     state = 'stream-whitespace'
+
             elif state == 'stream-whitespace':
                 if self.content[i][0] != CHAR_WHITESPACE:
                     data += self.content[i][1]
                 state = 'stream-concat'
+
             elif state == 'stream-concat':
                 if self.content[i][0] == CHAR_REGULAR and self.content[i][1] == 'endstream':
-                    if filter and filters: # Trevors addition: we need to try to decompress only if we found a filter
+                    if filter and self.filters:  # Trevors addition: we need to try to decompress only if we found a filter
                         try:
-                            return self.Decompress(data, filters)
+                            return self.Decompress(data, self.filters)
                         except DecompressException as e:
                             self.logger.debug('%s %s'%(e.filter, e.msg))
                             return data
@@ -568,10 +569,11 @@ class cPDFElementIndirectObject(PDFElement):
                         return data
                 else:
                     data += self.content[i][1]
+
             else:
                 # Unexpected filter state
                 return False
-        return filters
+        return self.filters
 
     def Decompress(self, data, filters):
         for filter in filters:
@@ -591,9 +593,10 @@ class cPDFElementIndirectObject(PDFElement):
             except:
                 raise DecompressException(filter)
 
-        if len(filters) == 0:
-            # No filters; returning data anyways'
-            return data
+        # What's the point of this? either way, data is returned..
+        #if len(filters) == 0:
+        #    # No filters; returning data anyways'
+        #    return data
         return data
 
 class cPDFElementStartxref(PDFElement):

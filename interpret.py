@@ -35,6 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # stdlib
 from StringIO import StringIO
+from collections import defaultdict
 import logging
 import os
 import re
@@ -203,6 +204,8 @@ class InterpretPDF:
         self.__handleActions()
         self.__checkJSChanges()
 
+        # extras
+        self.__generateObjectBasedFeatures()
         self._print_stats()
 
     def _print_stats(self):
@@ -369,6 +372,52 @@ class InterpretPDF:
 
             self.logger.debug("Added PDFObject %s" % self.__pdfObjTypeD[pdfObj.type])
             self.__pdfObjL.append(pdfObj)
+
+    def __generateObjectBasedFeatures(self):
+        """
+        Iterates through the PDF objects and creates features based on their characteristics,
+        attributes, and structure
+        """
+        # Number of objects
+        self.featureCollection.setFeatureValue("NUM_PDF_OBJECTS", len(self.__pdfObjL))
+
+        # Check for gaps in the object id's
+        idL = [int(pObj.id) for pObj in self.__pdfObjL if pObj.id is not None]
+        idL.sort()
+        j = 0
+        missingL = []
+        for i in xrange(idL[0], idL[-1]):
+            if idL[j] != i:
+                missingL.append(i)
+            else:
+                j += 1
+        if missingL:
+            self.featureCollection.setFeatureValue("NUM_MISSING_PDF_OBJECTS", len(missingL))
+
+        # Note each filter and how often each was used
+        filtersD = defaultdict(int)  # filterName => numTimesUsed
+        # Note the subtypes and how often each occurs
+        subtypesD = defaultdict(int)
+
+        for pObj in self.__pdfObjL:
+            if not hasattr(pObj, 'filters'):
+                continue
+            for filterName in pObj.filters:
+                filtersD[filterName] += 1
+
+            # check subtypes of indirect object
+            if pObj.type == self.__pdfObjTypeD["PDF_ELEMENT_INDIRECT_OBJECT"] and pObj.dict and pObj.dict.get('/Subtype') is not None:
+                subtypesD[pObj.dict['/Subtype']] += 1
+
+        # feature time
+        for filterName, count in filtersD.iteritems():
+            featureName = "STREAM_FILTER_%s_USE_COUNT" % filterName
+            self.featureCollection.registerFeature(featureName)
+            self.featureCollection.setFeatureValue(featureName, count)
+        for subtype, count in subtypesD.iteritems():
+            featureName = "SUBTYPE_%s_COUNT" % subtype
+            self.featureCollection.registerFeature(featureName)
+            self.featureCollection.setFeatureValue(featureName, count)
 
     def __bruteForceJS(self):
         '''
@@ -761,8 +810,8 @@ class InterpretPDF:
                         if scriptL:
                             for _script in scriptL:
                                 # eval the script in the context
-                                self._increment_stats(F_C_JS_SCRIPTS_FOUND)
-                                self.__executeJavaScript( _script )
+                                self._increment_stats("F_C_JS_SCRIPTS_FOUND")
+                                self.__executeJavaScript(_script)
 
                 for key in pdfElement.dict.keys():
                     self.logger.debug("[%s] Handling %s"%(KEY_CATALOG, key))

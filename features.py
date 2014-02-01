@@ -108,7 +108,7 @@ class FeatureCollection(object):
         featureName = validateFeatureName(featureName)
         self.logger.info("feature: %s" % featureName)
         if featureName in self.featuresD:
-            self.logger.warn("feature %s already exists; ignoring" % repr(featureName))
+            self.logger.info("feature %s already exists; ignoring" % repr(featureName))
             return
 
         # we may have features with different types; may have to make this slightly more complex
@@ -124,7 +124,7 @@ class FeatureCollection(object):
             self.registerFeature(featureName)
 
         # PDF related Features
-        for featureName in ("F_PDF_OPENACTION", "F_PDF_RENDITION", "F_L_PDF_LENGTH"):
+        for featureName in ("F_PDF_OPENACTION", "F_PDF_RENDITION", "F_L_PDF_LENGTH", "NUM_PDF_OBJECTS", "NUM_MISSING_PDF_OBJECTS"):
             self.registerFeature(featureName)
 
         # Statistical Features
